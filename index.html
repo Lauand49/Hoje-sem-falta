@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Faltas - UniLife</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .progress-bar { transition: width 0.5s ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+    <div class="max-w-2xl mx-auto p-6">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-indigo-700">Controle de Faltas 🎓</h1>
+            <p class="text-gray-600">Gerencie suas ausências e evite a reprovação por FI.</p>
+        </header>
+
+        <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+            <h2 class="text-lg font-semibold mb-4">Adicionar Nova Disciplina</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <input id="materiaNome" type="text" placeholder="Ex: Cálculo I" class="border p-2 rounded w-full">
+                <input id="cargaHoraria" type="number" placeholder="Carga Horária (ex: 60)" class="border p-2 rounded w-full">
+                <button onclick="adicionarMateria()" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700 transition">
+                    Adicionar
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">* Consideramos o limite padrão de 25% de faltas.</p>
+        </div>
+
+        <div id="listaMaterias" class="space-y-4">
+            </div>
+    </div>
+
+    <script>
+        let materias = JSON.parse(localStorage.getItem('materias')) || [];
+
+        function salvar() {
+            localStorage.setItem('materias', JSON.stringify(materias));
+            renderizar();
+        }
+
+        function adicionarMateria() {
+            const nome = document.getElementById('materiaNome').value;
+            const ch = document.getElementById('cargaHoraria').value;
+
+            if (nome && ch) {
+                // Cálculo: Geralmente 1 falta (presença) equivale a 2 horas de aula em muitas faculdades.
+                // Aqui vamos considerar a unidade como "Horas de Falta" para ser mais preciso.
+                const limiteHoras = ch * 0.25;
+                
+                materias.push({
+                    id: Date.now(),
+                    nome: nome,
+                    ch: ch,
+                    limite: limiteHoras,
+                    faltasAtuais: 0
+                });
+
+                document.getElementById('materiaNome').value = '';
+                document.getElementById('cargaHoraria').value = '';
+                salvar();
+            }
+        }
+
+        function alterarFalta(id, valor) {
+            const materia = materias.find(m => m.id === id);
+            if (materia) {
+                // Cada clique adiciona 2h de falta (padrão de uma aula comum)
+                materia.faltasAtuais = Math.max(0, materia.faltasAtuais + (valor * 2));
+                salvar();
+            }
+        }
+
+        function removerMateria(id) {
+            materias = materias.filter(m => m.id !== id);
+            salvar();
+        }
+
+        function renderizar() {
+            const container = document.getElementById('listaMaterias');
+            container.innerHTML = '';
+
+            materias.forEach(m => {
+                const porcentagem = (m.faltasAtuais / m.limite) * 100;
+                let corBarra = 'bg-green-500';
+                if (porcentagem > 50) corBarra = 'bg-yellow-500';
+                if (porcentagem > 85) corBarra = 'bg-red-500';
+
+                container.innerHTML += `
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 ${porcentagem >= 100 ? 'border-red-600' : 'border-indigo-500'}">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="text-xl font-bold">${m.nome}</h3>
+                                <p class="text-sm text-gray-500 text-uppercase">Limite: ${m.limite}h | Usado: ${m.faltasAtuais}h</p>
+                            </div>
+                            <button onclick="removerMateria(${m.id})" class="text-gray-400 hover:text-red-500">✕</button>
+                        </div>
+
+                        <div class="w-full bg-gray-200 rounded-full h-4 mb-4">
+                            <div class="progress-bar ${corBarra} h-4 rounded-full" style="width: ${Math.min(porcentagem, 100)}%"></div>
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <div class="space-x-2">
+                                <button onclick="alterarFalta(${m.id}, -1)" class="bg-gray-200 px-3 py-1 rounded font-bold">- 2h</button>
+                                <button onclick="alterarFalta(${m.id}, 1)" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded font-bold">+ 2h</button>
+                            </div>
+                            <span class="font-semibold ${porcentagem >= 100 ? 'text-red-600' : 'text-gray-700'}">
+                                ${porcentagem >= 100 ? 'REPROVADO' : `Resta: ${m.limite - m.faltasAtuais}h`}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Iniciar
+        renderizar();
+    </script>
+</body>
+</html>
